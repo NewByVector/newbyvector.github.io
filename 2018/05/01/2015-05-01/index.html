@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
+  <meta name="description" content="yanm1ng&#39;s blog">
+  <meta name="keyword" content="hexo-theme, vuejs">
+  
+    <link rel="shortcut icon" href="/css/images/logo.png">
+  
+  <title>
+    
+      requestAnimationFrame理解与实践 | Hexo
+    
+  </title>
+  <link href="//cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="//cdn.bootcss.com/nprogress/0.2.0/nprogress.min.css" rel="stylesheet">
+  <link href="//cdn.bootcss.com/highlight.js/9.12.0/styles/tomorrow.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/plugins/gitment.css">
+  <script src="//cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+  <script src="//cdn.bootcss.com/geopattern/1.2.3/js/geopattern.min.js"></script>
+  <script src="//cdn.bootcss.com/nprogress/0.2.0/nprogress.min.js"></script>
+  <script src="/js/qrious.js"></script>
+<script src="/js/gitment.js"></script>
+  
+  
+    <!-- MathJax support START -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdn.bootcss.com/mathjax/2.7.1/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- MathJax support END -->
+  
+
+
+</head>
+<div class="wechat-share">
+  <img src="/css/images/logo.png" />
+</div>
+
+  <body>
+    <header class="header fixed-header">
+  <div class="header-container">
+    <a class="home-link" href="/">
+      <div class="logo"></div>
+      <span>Hexo</span>
+    </a>
+    <ul class="right-list">
+      
+        <li class="list-item">
+          
+            <a href="/" class="item-link">Home</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/tags/" class="item-link">Tags</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/archives/" class="item-link">Archives</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/project/" class="item-link">Projects</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/about/" class="item-link">About</a>
+          
+        </li>
+      
+    </ul>
+    <div class="menu">
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </div>
+    <div class="menu-mask">
+      <ul class="menu-list">
+        
+          <li class="menu-item">
+            
+              <a href="/" class="menu-link">Home</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/tags/" class="menu-link">Tags</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/archives/" class="menu-link">Archives</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/project/" class="menu-link">Projects</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/about/" class="menu-link">About</a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</header>
+
+    <div id="article-banner">
+  <h2>requestAnimationFrame理解与实践</h2>
+  <p class="post-date">2018-05-01</p>
+  <div class="arrow-down">
+    <a href="javascript:;"></a>
+  </div>
+</div>
+<main class="app-body flex-box">
+  <!-- Article START -->
+  <article class="post-article">
+    <section class="markdown-content"><h3 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h3><p>传统的 <code>javascript</code> 动画是通过定时器 <code>setTimeout</code> 或者 <code>setInterval</code> 实现的。但是定时器动画一直存在两个问题，第一个就是动画的循时间环间隔不好确定，设置长了动画显得不够平滑流畅，设置短了浏览器的重绘频率会达到瓶颈，推荐的最佳循环间隔是17ms（大多数电脑的显示器刷新频率是60Hz，1000ms/60）；第二个问题是定时器第二个时间参数只是指定了多久后将动画任务添加到浏览器的UI线程队列中，如果UI线程处于忙碌状态，那么动画不会立刻执行。为了解决这些问题，H5 中加入了 <code>requestAnimationFrame</code>;</p>
+<h3 id="优点"><a href="#优点" class="headerlink" title="优点"></a>优点</h3><ol>
+<li><code>requestAnimationFrame</code> 会把每一帧中的所有 DOM 操作集中起来，在一次重绘或回流中就完成，并且重绘或回流的时间间隔紧紧跟随浏览器的刷新频率</li>
+<li>在隐藏或不可见的元素中，<code>requestAnimationFrame</code> 将不会进行重绘或回流，这当然就意味着更少的 CPU、GPU 和内存使用量</li>
+<li><code>requestAnimationFrame</code> 是由浏览器专门为动画提供的 API，在运行时浏览器会自动优化方法的调用，并且如果页面不是激活状态下的话，动画会自动暂停，有效节省了 CPU 开销</li>
+</ol>
+<h3 id="场景"><a href="#场景" class="headerlink" title="场景"></a>场景</h3><h4 id="js动画"><a href="#js动画" class="headerlink" title="js动画"></a>js动画</h4><p><code>requestAnimationFrame</code> 本来就是为动画而生的，所以在处理 js 动画不在话下，与定时器的用法非常相似，下面是一个例子，点击元素时开始转动，再次点击转动速速增加。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> deg = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">var</span> id;</span><br><span class="line"><span class="keyword">var</span> div = <span class="built_in">document</span>.getElementById(<span class="string">"div"</span>);</span><br><span class="line">div.addEventListener(<span class="string">'click'</span>, <span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">var</span> self = <span class="keyword">this</span>;</span><br><span class="line">    requestAnimationFrame(<span class="function"><span class="keyword">function</span> <span class="title">change</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        self.style.transform = <span class="string">'rotate('</span> + (deg++) + <span class="string">'deg)'</span>;</span><br><span class="line">        id = requestAnimationFrame(change);</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;);</span><br><span class="line"><span class="built_in">document</span>.getElementById(<span class="string">'stop'</span>).onclick = <span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">    cancelAnimationFrame(id);</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<h4 id="大数据渲染"><a href="#大数据渲染" class="headerlink" title="大数据渲染"></a>大数据渲染</h4><p>在大数据渲染过程中，比如表格的渲染，如果不进行一些性能策略处理，就会出现 UI 冻结现象，用户体验极差。有个场景，将后台返回的十万条记录插入到表格中，如果一次性在循环中生成 DOM 元素，会导致页面卡顿5s左右。这时候我们就可以用 <code>requestAnimationFrame</code> 进行分步渲染，确定最好的时间间隔，使得页面加载过程中很流畅。</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> total = <span class="number">100000</span>;</span><br><span class="line"><span class="keyword">var</span> size = <span class="number">100</span>;</span><br><span class="line"><span class="keyword">var</span> count = total / size;</span><br><span class="line"><span class="keyword">var</span> done = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">var</span> ul = <span class="built_in">document</span>.getElementById(<span class="string">'list'</span>);</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">function</span> <span class="title">addItems</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">var</span> li = <span class="literal">null</span>;</span><br><span class="line">    <span class="keyword">var</span> fg = <span class="built_in">document</span>.createDocumentFragment();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">var</span> i = <span class="number">0</span>; i &lt; size; i++) &#123;</span><br><span class="line">        li = <span class="built_in">document</span>.createElement(<span class="string">'li'</span>);</span><br><span class="line">        li.innerText = <span class="string">'item '</span> + (done * size + i);</span><br><span class="line">        fg.appendChild(li);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ul.appendChild(fg);</span><br><span class="line">    done++;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (done &lt; count) &#123;</span><br><span class="line">        requestAnimationFrame(addItems);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">requestAnimationFrame(addItems);</span><br></pre></td></tr></table></figure>
+<h3 id="兼容性"><a href="#兼容性" class="headerlink" title="兼容性"></a>兼容性</h3><p>firefox、chrome、ie10以上， <code>requestAnimationFrame</code> 的支持很好，但不兼容 IE9及以下浏览器，但是我们可以用定时器来做一下兼容，以下是兼容代码：</p>
+<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">(<span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="keyword">var</span> lastTime = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">var</span> vendors = [<span class="string">'webkit'</span>, <span class="string">'moz'</span>];</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">var</span> x = <span class="number">0</span>; x &lt; vendors.length &amp;&amp; !<span class="built_in">window</span>.requestAnimationFrame; ++x) &#123;</span><br><span class="line">        <span class="built_in">window</span>.requestAnimationFrame = <span class="built_in">window</span>[vendors[x] + <span class="string">'RequestAnimationFrame'</span>];</span><br><span class="line">        <span class="built_in">window</span>.cancelAnimationFrame =</span><br><span class="line">            <span class="built_in">window</span>[vendors[x] + <span class="string">'CancelAnimationFrame'</span>] || <span class="built_in">window</span>[vendors[x] + <span class="string">'CancelRequestAnimationFrame'</span>];</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!<span class="built_in">window</span>.requestAnimationFrame)</span><br><span class="line">        <span class="built_in">window</span>.requestAnimationFrame = <span class="function"><span class="keyword">function</span> (<span class="params">callback</span>) </span>&#123;</span><br><span class="line">            <span class="comment">//调整时间，让一次动画等待和执行时间在最佳循环时间间隔内完成</span></span><br><span class="line">            <span class="keyword">var</span> currTime = <span class="keyword">new</span> <span class="built_in">Date</span>().getTime();</span><br><span class="line">            <span class="keyword">var</span> timeToCall = <span class="built_in">Math</span>.max(<span class="number">0</span>, <span class="number">17</span> - (currTime - lastTime));</span><br><span class="line">            <span class="keyword">var</span> id = <span class="built_in">window</span>.setTimeout(<span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">                    callback(currTime + timeToCall);</span><br><span class="line">                &#125;,</span><br><span class="line">                timeToCall);</span><br><span class="line">            lastTime = currTime + timeToCall;</span><br><span class="line">            <span class="keyword">return</span> id;</span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!<span class="built_in">window</span>.cancelAnimationFrame)</span><br><span class="line">        <span class="built_in">window</span>.cancelAnimationFrame = <span class="function"><span class="keyword">function</span> (<span class="params">id</span>) </span>&#123;</span><br><span class="line">            clearTimeout(id);</span><br><span class="line">        &#125;;</span><br><span class="line">&#125;());</span><br></pre></td></tr></table></figure>
+<h3 id="性能对比"><a href="#性能对比" class="headerlink" title="性能对比"></a>性能对比</h3><p>以上面大数据渲染为例，我们向一个页面中插入1万条数据。<br>下面是用 <code>setTimeout</code> 后浏览器帧率：</p>
+<p><img src="1.png"></p>
+<p>下面是用 <code>requestAnimationFrame</code> 后浏览器帧率：</p>
+<p><img src="2.png"></p>
+<p>我们会发现，性能提升的还是很多的。所以还是很推荐使用 <code>requestAnimationFrame</code>;</p>
+</section>
+    <!-- Tags START -->
+    
+    <!-- Tags END -->
+    <!-- NAV START -->
+    
+    <!-- NAV END -->
+    <!-- 打赏 START -->
+    
+    <!-- 打赏 END -->
+    <!-- 二维码 START -->
+    
+    <!-- 二维码 END -->
+    
+      <!-- Gitment START -->
+      <div id="comments"></div>
+      <!-- Gitment END -->
+    
+  </article>
+  <!-- Article END -->
+  <!-- Catalog START -->
+  
+    <aside class="catalog-container">
+  <div class="toc-main">
+    <strong class="toc-title">Catalog</strong>
+    
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#背景"><span class="toc-nav-text">背景</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#优点"><span class="toc-nav-text">优点</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#场景"><span class="toc-nav-text">场景</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-4"><a class="toc-nav-link" href="#js动画"><span class="toc-nav-text">js动画</span></a></li><li class="toc-nav-item toc-nav-level-4"><a class="toc-nav-link" href="#大数据渲染"><span class="toc-nav-text">大数据渲染</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#兼容性"><span class="toc-nav-text">兼容性</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#性能对比"><span class="toc-nav-text">性能对比</span></a></li></ol>
+    
+  </div>
+</aside>
+  
+  <!-- Catalog END -->
+</main>
+
+<script>
+  (function () {
+    var url = 'http://yoursite.com/2018/05/01/2015-05-01/';
+    var banner = ''
+    if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
+      $('#article-banner').css({
+        'background-image': 'url(' + banner + ')'
+      })
+    } else {
+      $('#article-banner').geopattern(url)
+    }
+    $('.header').removeClass('fixed-header')
+
+     // error image
+    $(".markdown-content img").on('error', function() {
+      $(this).attr('src', 'http://file.muyutech.com/error-img.png')
+      $(this).css({
+        'cursor': 'default'
+      })
+    })
+
+    // zoom image
+    $(".markdown-content img").on('click', function() {
+      var src = $(this).attr('src')
+      if (src !== 'http://file.muyutech.com/error-img.png') {
+        var imageW = $(this).width()
+        var imageH = $(this).height()
+        
+        var zoom = ($(window).width() * 0.95 / imageW).toFixed(2)
+        zoom = zoom < 1 ? 1 : zoom
+        zoom = zoom > 2 ? 2 : zoom
+        var transY = (($(window).height() - imageH) / 2).toFixed(2)
+
+        $('body').append('<div class="image-view-wrap"><div class="image-view-inner"><img src="'+ src +'" /></div></div>')
+        $('.image-view-wrap').addClass('wrap-active')
+        $('.image-view-wrap img').css({
+          'width': `${imageW}`,
+          'transform': `translate3d(0, ${transY}px, 0) scale3d(${zoom}, ${zoom}, 1)`
+        })
+        $('html').css('overflow', 'hidden')
+
+        $('.image-view-wrap').on('click', function() {
+          $(this).remove()
+          $('html').attr('style', '')
+        })
+      }
+    })
+
+    // qrcode
+    var qr = new QRious({
+      element: document.getElementById('share-qrcode'),
+      value: document.location.href
+    });
+
+    // gitment
+    var gitmentConfig = "yanm1ng";
+    if (gitmentConfig !== 'undefined') {
+      var gitment = new Gitment({
+        id: "requestAnimationFrame理解与实践",
+        owner: "yanm1ng",
+        repo: "yanm1ng.github.io",
+        oauth: {
+          client_id: "0f87e490e00ee3fd87ef",
+          client_secret: "4a9d2b148e7971c2201ad12131ce8bf8159ccd2e"
+        },
+        theme: {
+          render(state, instance) {
+            const container = document.createElement('div')
+            container.lang = "en-US"
+            container.className = 'gitment-container gitment-root-container'
+            container.appendChild(instance.renderHeader(state, instance))
+            container.appendChild(instance.renderEditor(state, instance))
+            container.appendChild(instance.renderComments(state, instance))
+            container.appendChild(instance.renderFooter(state, instance))
+            return container;
+          }
+        }
+      })
+      gitment.render(document.getElementById('comments'))
+    }
+  })();
+</script>
+
+    <div class="scroll-top">
+  <span class="arrow-icon"></span>
+</div>
+    <footer class="app-footer">
+  <p class="copyright">
+    &copy; 2018 | Proudly powered by <a href="https://hexo.io" target="_blank">Hexo</a>
+    <br>
+    Theme by <a href="https://github.com/yanm1ng">yanm1ng</a>
+  </p>
+</footer>
+
+<script>
+  function async(u, c) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+</script>
+<script>
+  async("//cdn.bootcss.com/fastclick/1.0.6/fastclick.min.js", function(){
+    FastClick.attach(document.body);
+  })
+</script>
+
+<script>
+  var hasLine = 'true';
+  async("//cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js", function(){
+    $('figure pre').each(function(i, block) {
+      var figure = $(this).parents('figure');
+      if (hasLine === 'false') {
+        figure.find('.gutter').hide();
+      }
+      var lang = figure.attr('class').split(' ')[1] || 'code';
+      var codeHtml = $(this).html();
+      var codeTag = document.createElement('code');
+      codeTag.className = lang;
+      codeTag.innerHTML = codeHtml;
+      $(this).attr('class', '').empty().html(codeTag);
+      figure.attr('data-lang', lang.toUpperCase());
+      hljs.highlightBlock(block);
+    });
+  })
+</script>
+<!-- Baidu Tongji -->
+
+<script src="/js/script.js"></script>
+  </body>
+</html>
