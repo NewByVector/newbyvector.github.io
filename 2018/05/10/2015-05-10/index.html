@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html>
+  <head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport">
+  <meta name="description" content="yanm1ng&#39;s blog">
+  <meta name="keyword" content="hexo-theme, vuejs">
+  
+    <link rel="shortcut icon" href="/css/images/logo.png">
+  
+  <title>
+    
+      理解浏览器缓存机制 | Hexo
+    
+  </title>
+  <link href="//cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="//cdn.bootcss.com/nprogress/0.2.0/nprogress.min.css" rel="stylesheet">
+  <link href="//cdn.bootcss.com/highlight.js/9.12.0/styles/tomorrow.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+<link rel="stylesheet" href="/css/plugins/gitment.css">
+  <script src="//cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+  <script src="//cdn.bootcss.com/geopattern/1.2.3/js/geopattern.min.js"></script>
+  <script src="//cdn.bootcss.com/nprogress/0.2.0/nprogress.min.js"></script>
+  <script src="/js/qrious.js"></script>
+<script src="/js/gitment.js"></script>
+  
+  
+    <!-- MathJax support START -->
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdn.bootcss.com/mathjax/2.7.1/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <!-- MathJax support END -->
+  
+
+
+</head>
+<div class="wechat-share">
+  <img src="/css/images/logo.png" />
+</div>
+
+  <body>
+    <header class="header fixed-header">
+  <div class="header-container">
+    <a class="home-link" href="/">
+      <div class="logo"></div>
+      <span>Hexo</span>
+    </a>
+    <ul class="right-list">
+      
+        <li class="list-item">
+          
+            <a href="/" class="item-link">Home</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/tags/" class="item-link">Tags</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/archives/" class="item-link">Archives</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/project/" class="item-link">Projects</a>
+          
+        </li>
+      
+        <li class="list-item">
+          
+            <a href="/about/" class="item-link">About</a>
+          
+        </li>
+      
+    </ul>
+    <div class="menu">
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+      <span class="icon-bar"></span>
+    </div>
+    <div class="menu-mask">
+      <ul class="menu-list">
+        
+          <li class="menu-item">
+            
+              <a href="/" class="menu-link">Home</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/tags/" class="menu-link">Tags</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/archives/" class="menu-link">Archives</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/project/" class="menu-link">Projects</a>
+            
+          </li>
+        
+          <li class="menu-item">
+            
+              <a href="/about/" class="menu-link">About</a>
+            
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</header>
+
+    <div id="article-banner">
+  <h2>理解浏览器缓存机制</h2>
+  <p class="post-date">2018-05-10</p>
+  <div class="arrow-down">
+    <a href="javascript:;"></a>
+  </div>
+</div>
+<main class="app-body flex-box">
+  <!-- Article START -->
+  <article class="post-article">
+    <section class="markdown-content"><h1 id="理解浏览器缓存机制"><a href="#理解浏览器缓存机制" class="headerlink" title="理解浏览器缓存机制"></a>理解浏览器缓存机制</h1><h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p>浏览器缓存可以提高网页打开速度、减少 Http 请求，在提高用户体验、重复利用资源、减少网络带宽上发挥着重要的作用。特别是现在用户对网站响应速度要求特别高的情况下，高效地利用浏览器缓存机制可以使网站性能优化事半功倍。<br>下面对浏览器缓存机制做一些分析。</p>
+<h2 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h2><p>HTTP缓存可以分为<code>强缓存</code>和<code>协商缓存</code>:</p>
+<ol>
+<li><code>强缓存</code>：强缓存命中不会发送请求到服务器端，直接从本地缓存中获取资源，状态码 <code>200 ( from cache )</code></li>
+<li><code>协商缓存</code>：协商缓存会发送请求到服务器，服务器通过请求头部字段来验证资源是否命中协商缓存，如果命中，则返回状态码 <code>304 ( not modified )</code>，通知浏览器从缓存中获取资源。</li>
+</ol>
+<h2 id="示意图"><a href="#示意图" class="headerlink" title="示意图"></a>示意图</h2><p><img src="3.png"></p>
+<h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><h3 id="根据响应头部的字段确定浏览器缓存策略"><a href="#根据响应头部的字段确定浏览器缓存策略" class="headerlink" title="根据响应头部的字段确定浏览器缓存策略"></a>根据响应头部的字段确定浏览器缓存策略</h3><p>响应头中与缓存策略相关的字段包括 <code>Cache-Control</code>, <code>Pragma</code>, <code>Expires</code>, 下面分析这三个字段。</p>
+<h4 id="Cache-Control"><a href="#Cache-Control" class="headerlink" title="Cache-Control"></a>Cache-Control</h4><p><code>Cache-Control</code> 是 Http/1.1 新增的字段，是控制浏览器缓存的主要字段。它的主要内容如下：</p>
+<ol>
+<li><code>no-cache</code>：资源可以被缓存，但立刻过期，下次访问必须验证资源有效性</li>
+<li><code>max-age</code>：缓存资源，在指定时间后过期(单位为秒)</li>
+<li><code>no-store</code>：资源不会被缓存</li>
+<li><code>public</code>：资源可以被浏览器和代理服务器缓存</li>
+<li><code>private</code>： 资源只能被浏览器缓存</li>
+</ol>
+<h4 id="Pragma"><a href="#Pragma" class="headerlink" title="Pragma"></a>Pragma</h4><p><code>Pragma</code> 是 Http/1.0 的头部字段，只有一个值 <code>no-cache</code>， 功能和 <code>Cache-Control:no-cache</code> 一样。</p>
+<h4 id="Expires"><a href="#Expires" class="headerlink" title="Expires"></a>Expires</h4><p><code>Expires</code> 是缓存到期时间，以服务器时间为参考，优先级比 <code>Cache-Control: max-age</code> 低。  </p>
+<p>在一些场景中必须避免浏览器缓存，推荐的做法是设置请求头：<code>Cache-Control: no-cache, no-store, must-revalidate</code></p>
+<h3 id="强缓存命中条件"><a href="#强缓存命中条件" class="headerlink" title="强缓存命中条件"></a>强缓存命中条件</h3><p>我们会发现，最优的做法是让一些公开资源命中强缓存，这是响应最快的。那么命中强缓存的条件又是什么呢？</p>
+<ol>
+<li>请求头部不包括 <code>Pragma</code> 字段</li>
+<li>响应头部 <code>Cache-Control</code> 中不包括 <code>no-cache、no-store</code></li>
+<li>响应头部 <code>max-age</code> 或者 <code>Expires</code> 大于请求日期</li>
+</ol>
+<p>如果我们在很短的一段时间内多次访问同一个资源，并且响应头部却没有 <code>max-age</code> 或者 <code>Expires</code> 信息，是不是就不会命中强缓存了呢？不是的，浏览器会做出优化，默认采用一个启发式算法，取响应头的 <code>(Date - Last-Modified) * 0.1</code> 作为缓存有效时间，只要是在这段时间内请求这个资源，即使没有缓存过期字段，也会命中强缓存。</p>
+<h3 id="服务器端校验资源是否修改机制"><a href="#服务器端校验资源是否修改机制" class="headerlink" title="服务器端校验资源是否修改机制"></a>服务器端校验资源是否修改机制</h3><h4 id="Last-Modified-If-Modified-Since"><a href="#Last-Modified-If-Modified-Since" class="headerlink" title="Last-Modified/If-Modified-Since"></a>Last-Modified/If-Modified-Since</h4><p>服务器响应资源的时候返回一个头部字段 <code>Last-Modified</code>，代表该资源最后修改时间，当浏览器再次向服务器请求该资源时，会传送 <code>If-Modified-Since</code> 信息，值就是上次服务器响应的最后修改时间， 服务器将这个请求时间与本地资源实际最后修改时间做对比，如果文件没有被修改，则返回状态码 <code>304</code>，通知浏览器从缓存中读取资源文件。</p>
+<h4 id="ETag-If-None-Match"><a href="#ETag-If-None-Match" class="headerlink" title="ETag/If-None-Match"></a>ETag/If-None-Match</h4><p><code>ETag</code> 是一个响应首部字段，它是根据资源内容生成的一段hash字符串，标识资源的状态，由服务端产生。当浏览器再次向服务器请求该资源时，会传送 <code>If-None-Match</code> 字段，服务器收到请求后，拿 <code>If-None-Match</code> 字段的值与资源的实际 ETage 值进行比较，若相同，则命中协商缓存，返回状态码 <code>304</code>。<code>ETag</code> 优先级比 <code>Last-Modified</code> 高，同时存在时会以<code>ETag</code> 为准。</p>
+<p>那已经有了 <code>Last-Modified</code> 机制，为什么要引入 <code>ETage</code> 机制呢？</p>
+<ol>
+<li>某些服务器不能精确得到资源的最后修改时间，这样就无法通过最后修改时间判断资源是否更新</li>
+<li>如果资源修改非常频繁，在秒以下的时间内进行修改，而 <code>Last-Modified</code> 只能精确到秒</li>
+<li>一些资源的最后修改时间改变了，但是内容没改变，使用 <code>ETag</code> 就能判别出资源内容是否被修改</li>
+</ol>
+<h2 id="浏览器缓存的使用"><a href="#浏览器缓存的使用" class="headerlink" title="浏览器缓存的使用"></a>浏览器缓存的使用</h2><p>使用缓存的过程其实就是根据场景设置 <code>Cache-Control</code> 的值的过程：</p>
+<p><img src="4.png"></p>
+</section>
+    <!-- Tags START -->
+    
+    <!-- Tags END -->
+    <!-- NAV START -->
+    
+  <div class="nav-container">
+    <!-- reverse left and right to put prev and next in a more logic postition -->
+    
+      <a class="nav-left" href="/2018/05/01/2015-05-01/">
+        <span class="nav-arrow">← </span>
+        
+          requestAnimationFrame理解与实践
+        
+      </a>
+    
+    
+  </div>
+
+    <!-- NAV END -->
+    <!-- 打赏 START -->
+    
+    <!-- 打赏 END -->
+    <!-- 二维码 START -->
+    
+    <!-- 二维码 END -->
+    
+      <!-- Gitment START -->
+      <div id="comments"></div>
+      <!-- Gitment END -->
+    
+  </article>
+  <!-- Article END -->
+  <!-- Catalog START -->
+  
+    <aside class="catalog-container">
+  <div class="toc-main">
+    <strong class="toc-title">Catalog</strong>
+    
+      <ol class="toc-nav"><li class="toc-nav-item toc-nav-level-1"><a class="toc-nav-link" href="#理解浏览器缓存机制"><span class="toc-nav-text">理解浏览器缓存机制</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#介绍"><span class="toc-nav-text">介绍</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#概念"><span class="toc-nav-text">概念</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#示意图"><span class="toc-nav-text">示意图</span></a></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#分析"><span class="toc-nav-text">分析</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#根据响应头部的字段确定浏览器缓存策略"><span class="toc-nav-text">根据响应头部的字段确定浏览器缓存策略</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-4"><a class="toc-nav-link" href="#Cache-Control"><span class="toc-nav-text">Cache-Control</span></a></li><li class="toc-nav-item toc-nav-level-4"><a class="toc-nav-link" href="#Pragma"><span class="toc-nav-text">Pragma</span></a></li><li class="toc-nav-item toc-nav-level-4"><a class="toc-nav-link" href="#Expires"><span class="toc-nav-text">Expires</span></a></li></ol></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#强缓存命中条件"><span class="toc-nav-text">强缓存命中条件</span></a></li><li class="toc-nav-item toc-nav-level-3"><a class="toc-nav-link" href="#服务器端校验资源是否修改机制"><span class="toc-nav-text">服务器端校验资源是否修改机制</span></a><ol class="toc-nav-child"><li class="toc-nav-item toc-nav-level-4"><a class="toc-nav-link" href="#Last-Modified-If-Modified-Since"><span class="toc-nav-text">Last-Modified/If-Modified-Since</span></a></li><li class="toc-nav-item toc-nav-level-4"><a class="toc-nav-link" href="#ETag-If-None-Match"><span class="toc-nav-text">ETag/If-None-Match</span></a></li></ol></li></ol></li><li class="toc-nav-item toc-nav-level-2"><a class="toc-nav-link" href="#浏览器缓存的使用"><span class="toc-nav-text">浏览器缓存的使用</span></a></li></ol></li></ol>
+    
+  </div>
+</aside>
+  
+  <!-- Catalog END -->
+</main>
+
+<script>
+  (function () {
+    var url = 'http://yoursite.com/2018/05/10/2015-05-10/';
+    var banner = ''
+    if (banner !== '' && banner !== 'undefined' && banner !== 'null') {
+      $('#article-banner').css({
+        'background-image': 'url(' + banner + ')'
+      })
+    } else {
+      $('#article-banner').geopattern(url)
+    }
+    $('.header').removeClass('fixed-header')
+
+     // error image
+    $(".markdown-content img").on('error', function() {
+      $(this).attr('src', 'http://file.muyutech.com/error-img.png')
+      $(this).css({
+        'cursor': 'default'
+      })
+    })
+
+    // zoom image
+    $(".markdown-content img").on('click', function() {
+      var src = $(this).attr('src')
+      if (src !== 'http://file.muyutech.com/error-img.png') {
+        var imageW = $(this).width()
+        var imageH = $(this).height()
+        
+        var zoom = ($(window).width() * 0.95 / imageW).toFixed(2)
+        zoom = zoom < 1 ? 1 : zoom
+        zoom = zoom > 2 ? 2 : zoom
+        var transY = (($(window).height() - imageH) / 2).toFixed(2)
+
+        $('body').append('<div class="image-view-wrap"><div class="image-view-inner"><img src="'+ src +'" /></div></div>')
+        $('.image-view-wrap').addClass('wrap-active')
+        $('.image-view-wrap img').css({
+          'width': `${imageW}`,
+          'transform': `translate3d(0, ${transY}px, 0) scale3d(${zoom}, ${zoom}, 1)`
+        })
+        $('html').css('overflow', 'hidden')
+
+        $('.image-view-wrap').on('click', function() {
+          $(this).remove()
+          $('html').attr('style', '')
+        })
+      }
+    })
+
+    // qrcode
+    var qr = new QRious({
+      element: document.getElementById('share-qrcode'),
+      value: document.location.href
+    });
+
+    // gitment
+    var gitmentConfig = "yanm1ng";
+    if (gitmentConfig !== 'undefined') {
+      var gitment = new Gitment({
+        id: "理解浏览器缓存机制",
+        owner: "yanm1ng",
+        repo: "yanm1ng.github.io",
+        oauth: {
+          client_id: "0f87e490e00ee3fd87ef",
+          client_secret: "4a9d2b148e7971c2201ad12131ce8bf8159ccd2e"
+        },
+        theme: {
+          render(state, instance) {
+            const container = document.createElement('div')
+            container.lang = "en-US"
+            container.className = 'gitment-container gitment-root-container'
+            container.appendChild(instance.renderHeader(state, instance))
+            container.appendChild(instance.renderEditor(state, instance))
+            container.appendChild(instance.renderComments(state, instance))
+            container.appendChild(instance.renderFooter(state, instance))
+            return container;
+          }
+        }
+      })
+      gitment.render(document.getElementById('comments'))
+    }
+  })();
+</script>
+
+    <div class="scroll-top">
+  <span class="arrow-icon"></span>
+</div>
+    <footer class="app-footer">
+  <p class="copyright">
+    &copy; 2018 | Proudly powered by <a href="https://hexo.io" target="_blank">Hexo</a>
+    <br>
+    Theme by <a href="https://github.com/yanm1ng">yanm1ng</a>
+  </p>
+</footer>
+
+<script>
+  function async(u, c) {
+    var d = document, t = 'script',
+      o = d.createElement(t),
+      s = d.getElementsByTagName(t)[0];
+    o.src = u;
+    if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+    s.parentNode.insertBefore(o, s);
+  }
+</script>
+<script>
+  async("//cdn.bootcss.com/fastclick/1.0.6/fastclick.min.js", function(){
+    FastClick.attach(document.body);
+  })
+</script>
+
+<script>
+  var hasLine = 'true';
+  async("//cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js", function(){
+    $('figure pre').each(function(i, block) {
+      var figure = $(this).parents('figure');
+      if (hasLine === 'false') {
+        figure.find('.gutter').hide();
+      }
+      var lang = figure.attr('class').split(' ')[1] || 'code';
+      var codeHtml = $(this).html();
+      var codeTag = document.createElement('code');
+      codeTag.className = lang;
+      codeTag.innerHTML = codeHtml;
+      $(this).attr('class', '').empty().html(codeTag);
+      figure.attr('data-lang', lang.toUpperCase());
+      hljs.highlightBlock(block);
+    });
+  })
+</script>
+<!-- Baidu Tongji -->
+
+<script src="/js/script.js"></script>
+  </body>
+</html>
